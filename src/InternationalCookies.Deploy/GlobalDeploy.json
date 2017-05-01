@@ -1,0 +1,129 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "trafficManagerProfile": {
+      "defaultValue": "[concat('internationalcookies-tm', uniqueString(resourceGroup().id))]",
+      "type": "string"
+    },
+      "internationalcookiesAdminLogin": {
+          "type": "string",
+          "minLength": 1
+      },
+      "internationalcookiesAdminLoginPassword": {
+          "type": "securestring"
+      },
+      "internationalcookies-dbName": {
+        "defaultValue":  "internationalcookies-db",  
+        "type": "string",
+          "minLength": 1
+      },
+      "internationalcookies-dbCollation": {
+          "type": "string",
+          "minLength": 1,
+          "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
+      },
+      "internationalcookies-dbEdition": {
+          "type": "string",
+          "defaultValue": "Basic",
+          "allowedValues": [
+              "Basic",
+              "Standard",
+              "Premium"
+          ]
+      },
+      "internationalcookies-dbRequestedServiceObjectiveName": {
+          "type": "string",
+          "defaultValue": "Basic",
+          "allowedValues": [
+              "Basic",
+              "S0",
+              "S1",
+              "S2",
+              "P1",
+              "P2",
+              "P3"
+          ],
+          "metadata": {
+              "description": "Describes the performance level for Edition"
+          }
+      }
+  },
+    "variables": {
+        "internationalcookiesName": "[concat('internationalcookies', uniqueString(resourceGroup().id))]"
+    },
+  "resources": [
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "[parameters('trafficManagerProfile')]",
+      "apiVersion": "2015-11-01",
+      "location": "global",
+      "properties": {
+        "dnsConfig": {
+          "relativeName": "[parameters('trafficManagerProfile')]",
+          "fqdn": "[concat(parameters('trafficManagerProfile'),'.trafficmanager.net')]",
+          "ttl": 300
+        },
+        "endpoints": [],
+        "monitorConfig": {
+          "protocol": "HTTPS",
+          "port": 443,
+          "path": "/"
+        },
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Performance"
+      },
+      "resources": [],
+      "dependsOn": []
+    },
+      {
+          "name": "[variables('internationalcookiesName')]",
+          "type": "Microsoft.Sql/servers",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [ ],
+          "tags": {
+              "displayName": "internationalcookies"
+          },
+          "properties": {
+              "administratorLogin": "[parameters('internationalcookiesAdminLogin')]",
+              "administratorLoginPassword": "[parameters('internationalcookiesAdminLoginPassword')]"
+          },
+          "resources": [
+              {
+                  "name": "AllowAllWindowsAzureIps",
+                  "type": "firewallrules",
+                  "location": "[resourceGroup().location]",
+                  "apiVersion": "2014-04-01-preview",
+                  "dependsOn": [
+                      "[resourceId('Microsoft.Sql/servers', variables('internationalcookiesName'))]"
+                  ],
+                  "properties": {
+                      "startIpAddress": "0.0.0.0",
+                      "endIpAddress": "0.0.0.0"
+                  }
+              },
+              {
+                  "name": "[parameters('internationalcookies-dbName')]",
+                  "type": "databases",
+                  "location": "[resourceGroup().location]",
+                  "apiVersion": "2014-04-01-preview",
+                  "dependsOn": [
+                      "[resourceId('Microsoft.Sql/servers', variables('internationalcookiesName'))]"
+                  ],
+                  "tags": {
+                      "displayName": "internationalcookies-db"
+                  },
+                  "properties": {
+                      "collation": "[parameters('internationalcookies-dbCollation')]",
+                      "edition": "[parameters('internationalcookies-dbEdition')]",
+                      "maxSizeBytes": "1073741824",
+                      "requestedServiceObjectiveName": "[parameters('internationalcookies-dbRequestedServiceObjectiveName')]"
+                  }
+              }
+          ]
+      }
+  ],
+    "outputs": {
+    }
+}
